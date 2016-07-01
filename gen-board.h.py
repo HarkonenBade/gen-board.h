@@ -2,6 +2,7 @@
 
 import argparse
 import collections
+import os
 import textwrap
 import sys
 
@@ -103,15 +104,15 @@ extern "C" {
 
 
 class Pins():
-    IO_PORTS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
-    PINS_PER_PORT = 16
-
     _Pin = collections.namedtuple("Pin", ['name', 'port', 'num',
                                           'mode', 'od', 'otype',
                                           'ospeed', 'pupd', 'af',
                                           'raw'])
 
-    def __init__(self, board_def):
+    def __init__(self, mcu_def, board_def):
+        self.IO_PORTS = mcu_def['ports']
+        self.PINS_PER_PORT = mcu_def['pins_per_port']
+
         default, _ = self._parse_data_str(board_def['default'], True)
 
         self._pins = {port: [self._Pin(name="PIN{}".format(n),
@@ -345,7 +346,16 @@ def main():
         board_def = yaml.load(def_file)
 
     board_def = process_yaml(board_def)
-    pins = Pins(board_def)
+
+    mcu_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "mcu")
+
+    mcu_yaml_name = os.path.join(mcu_dir, board_def['mcutype'] + ".yaml")
+
+    with open(mcu_yaml_name) as mcu_file:
+        mcu_def = yaml.load(mcu_file)
+
+    pins = Pins(mcu_def, board_def)
 
     with open(args.outfile, "w") as board:
         board.write(HEADER.format(yamlfile=args.yamlfile,

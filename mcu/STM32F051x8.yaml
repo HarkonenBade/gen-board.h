@@ -1,0 +1,2 @@
+ports: [A, B, C, D, F]
+pins_per_port: 16
