@@ -1,6 +1,9 @@
 #! /usr/bin/python3
 
+import argparse
 import textwrap
+
+import yaml
 
 HEADER = textwrap.dedent("""\
 /*
@@ -25,7 +28,7 @@ HEADER = textwrap.dedent("""\
 
 
 /*
-    Setup for {boardname}
+    Setup for {name}
 */
 
 /*
@@ -55,6 +58,7 @@ HEADER = textwrap.dedent("""\
     MCU type as defined in the ST header.
 */
 #define {mcutype}
+
 """)
 
 IO_PORT_SETUP = textwrap.dedent("""\
@@ -63,22 +67,23 @@ IO_PORT_SETUP = textwrap.dedent("""\
     in the initialization code.
      Please refer to the STM32 Reference Manual for details.
 */
-#define PIN_MODE_INPUT(n)           (0U << ((n) * 2U))
-#define PIN_MODE_OUTPUT(n)          (1U << ((n) * 2U))
-#define PIN_MODE_ALTERNATE(n)       (2U << ((n) * 2U))
-#define PIN_MODE_ANALOG(n)          (3U << ((n) * 2U))
-#define PIN_ODR_LOW(n)              (0U << (n))
-#define PIN_ODR_HIGH(n)             (1U << (n))
-#define PIN_OTYPE_PUSHPULL(n)       (0U << (n))
-#define PIN_OTYPE_OPENDRAIN(n)      (1U << (n))
-#define PIN_OSPEED_VERYLOW(n)       (0U << ((n) * 2U))
-#define PIN_OSPEED_LOW(n)           (1U << ((n) * 2U))
-#define PIN_OSPEED_MEDIUM(n)        (2U << ((n) * 2U))
-#define PIN_OSPEED_HIGH(n)          (3U << ((n) * 2U))
-#define PIN_PUPDR_FLOATING(n)       (0U << ((n) * 2U))
-#define PIN_PUPDR_PULLUP(n)         (1U << ((n) * 2U))
-#define PIN_PUPDR_PULLDOWN(n)       (2U << ((n) * 2U))
-#define PIN_AFIO_AF(n, v)           ((v) << (((n) % 8U) * 4U))
+#define PIN_MODE_INPUT(n)              (0U << ((n) * 2U))
+#define PIN_MODE_OUTPUT(n)             (1U << ((n) * 2U))
+#define PIN_MODE_ALTERNATE(n)          (2U << ((n) * 2U))
+#define PIN_MODE_ANALOG(n)             (3U << ((n) * 2U))
+#define PIN_ODR_LOW(n)                 (0U << (n))
+#define PIN_ODR_HIGH(n)                (1U << (n))
+#define PIN_OTYPE_PUSHPULL(n)          (0U << (n))
+#define PIN_OTYPE_OPENDRAIN(n)         (1U << (n))
+#define PIN_OSPEED_VERYLOW(n)          (0U << ((n) * 2U))
+#define PIN_OSPEED_LOW(n)              (1U << ((n) * 2U))
+#define PIN_OSPEED_MEDIUM(n)           (2U << ((n) * 2U))
+#define PIN_OSPEED_HIGH(n)             (3U << ((n) * 2U))
+#define PIN_PUPDR_FLOATING(n)          (0U << ((n) * 2U))
+#define PIN_PUPDR_PULLUP(n)            (1U << ((n) * 2U))
+#define PIN_PUPDR_PULLDOWN(n)          (2U << ((n) * 2U))
+#define PIN_AFIO_AF(n, v)              ((v) << (((n) % 8U) * 4U))
+
 """)
 
 FOOTER = textwrap.dedent("""\
@@ -93,3 +98,29 @@ extern "C" {
 #endif /* _FROM_ASM_ */
 
 #endif /* _BOARD_H_ */""")
+
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("yamlfile",
+                        help="YAML board definition fle to read.")
+    parser.add_argument("outfile", nargs="?", default="board.h",
+                        help="File to write to. [board.h]")
+
+    return parser.parse_args()
+
+
+def main():
+    args = get_args()
+
+    with open(args.yamlfile, "r") as def_file:
+        board_def = yaml.load(def_file)
+
+    with open(args.outfile, "w") as board:
+        board.write(HEADER.format(yamlfile=args.yamlfile,
+                                  **board_def))
+        board.write(IO_PORT_SETUP)
+        board.write(FOOTER)
+
+if __name__ == "__main__":
+    main()
