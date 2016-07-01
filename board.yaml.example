@@ -3,13 +3,7 @@ lsefreq: 0
 hsefreq: 0
 voltage: 3.3
 mcutype: STM32F405xx
-default_modes:
-    mode: input
-    otype: pushpull
-    od: high
-    pupd: pullup
-    ospeed: high
-    af: 0
+default: input, pushpull, starthigh, pullup, highspeed
 pins:
     test: pa0
     fx_1: pa2, analog, floating

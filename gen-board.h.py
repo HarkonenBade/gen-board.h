@@ -112,29 +112,26 @@ class Pins():
                                           'raw'])
 
     def __init__(self, board_def):
-        default_modes = board_def['default_modes']
+        default, _ = self._parse_data_str(board_def['default'], True)
 
         self._pins = {port: [self._Pin(name="PIN{}".format(n),
                                        port=port,
                                        num=n,
                                        raw="unused",
-                                       **default_modes)
+                                       **default)
                              for n in range(self.PINS_PER_PORT)]
                       for port in self.IO_PORTS}
 
         self._pins_by_name = {}
 
         for name, pin_data in board_def['pins'].items():
-            pin = self._parse_pin_data(name, pin_data, default_modes)
+            pin = self._parse_pin_data(name, pin_data, default)
             self._pins[pin.port][pin.num] = pin
             self._pins_by_name[pin.name] = pin
 
-    def _parse_pin_data(self, name, pin_data, default_modes):
-        pin = {"name": name.upper()}
-        pin.update(default_modes)
-
+    def _parse_data_str(self, pin_data, default=False):
+        pin = {}
         raw = []
-
         for elm in pin_data.split(","):
             elm = elm.strip().upper()
             if(elm[0] == "P" and
@@ -145,7 +142,11 @@ class Pins():
             elif elm in ['INPUT',
                          'OUTPUT',
                          'ANALOG']:
+                if 'mode' in pin:
+                    print("Error: You cannot specify both an AF and a mode")
+                    sys.exit(1)
                 pin['mode'] = elm
+                pin['af'] = 0
                 raw += [elm]
             elif elm in ['STARTLOW',
                          'STARTHIGH']:
@@ -167,13 +168,48 @@ class Pins():
                 pin['pupd'] = elm
                 raw += [elm]
             elif elm[:2] == "AF":
+                if 'mode' in pin:
+                    print("Error: You cannot specify both an AF and a mode")
+                    sys.exit(1)
                 pin['mode'] = "ALTERNATE"
                 pin['af'] = int(elm[2:])
                 raw += [elm]
             else:
-                print("Error: Invalid pin keyword {} at pin {}!".format(elm,
-                                                                        name))
+                print("Error: Invalid pin keyword {} at {}!".format(elm,
+                                                                    pin_data))
                 sys.exit(1)
+
+        if default:
+            self._default_check_data(pin)
+        return pin, raw
+
+    def _default_check_data(self, pin):
+        if 'mode' not in pin:
+            print("Error: Default must specify either INPUT, OUTPUT, ANALOG or an AF.")
+            sys.exit(1)
+        elif 'od' not in pin:
+            print("Error: Default must specify either STARTLOW or STARTHIGH.")
+            sys.exit(1)
+        elif 'otype' not in pin:
+            print("Error: Default must specify either PUSHPULL or OPENDRAIN.")
+            sys.exit(1)
+        elif 'ospeed' not in pin:
+            print("Error: Default must specify either VERYLOWSPEED, LOWSPEED, MEDIUMSPEED, HIGHSPEED.")
+            sys.exit(1)
+        elif 'pupd' not in pin:
+            print("Error: Default must specify either FLOATING, PULLUP or PULLDOWN.")
+            sys.exit(1)
+        elif 'port' in pin:
+            print("Error: You cannot specify a PXN for default.")
+            sys.exit(1)
+
+    def _parse_pin_data(self, name, pin_data, default):
+        pin = {"name": name.upper()}
+        pin.update(default)
+
+        data, raw = self._parse_data_str(pin_data)
+
+        pin.update(data)
 
         pin['raw'] = ", ".join(raw).lower()
 
@@ -253,7 +289,7 @@ def write_io_ports(board, pins):
                 "#define VAL_GPIO{port}_{mode}R".format(port=port,
                                                         mode=mode))
             out += " | \\\n                                        ".join(
-                ["PIN_{mode}R_{data}(GPIO{port}_{name})".format(
+                ["PIN_{mode}_{data}(GPIO{port}_{name})".format(
                     mode=mode,
                     data=pin._asdict()[mode.lower()],
                     port=pin.port,
@@ -289,14 +325,6 @@ def write_io_ports(board, pins):
 def process_yaml(board_def):
     # Voltages in the form 330 (3v3), 500 (5v)
     board_def['voltage'] = int(board_def['voltage']*100)
-
-    # Modes should all be capitalised
-    board_def['default_modes'] = {k: str(v).upper()
-                                  for k, v
-                                  in board_def['default_modes'].items()}
-
-    # Except af which is an integer
-    board_def['default_modes']['af'] = int(board_def['default_modes']['af'])
     return board_def
 
 
