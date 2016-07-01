@@ -6,9 +6,9 @@ mcutype: STM32F405xx
 default_modes:
     mode: input
     otype: pushpull
-    odr: high
-    pupb: pullup
-    speed: high
+    od: high
+    pupd: pullup
+    ospeed: high
     af: 0
 pins:
     test: pa0

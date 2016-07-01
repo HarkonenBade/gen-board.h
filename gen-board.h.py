@@ -3,6 +3,7 @@
 import argparse
 import collections
 import textwrap
+import sys
 
 import yaml
 
@@ -72,17 +73,17 @@ IO_PORT_SETUP = textwrap.dedent("""\
 #define PIN_MODE_OUTPUT(n)             (1U << ((n) * 2U))
 #define PIN_MODE_ALTERNATE(n)          (2U << ((n) * 2U))
 #define PIN_MODE_ANALOG(n)             (3U << ((n) * 2U))
-#define PIN_ODR_LOW(n)                 (0U << (n))
-#define PIN_ODR_HIGH(n)                (1U << (n))
+#define PIN_OD_LOW(n)                  (0U << (n))
+#define PIN_OD_HIGH(n)                 (1U << (n))
 #define PIN_OTYPE_PUSHPULL(n)          (0U << (n))
 #define PIN_OTYPE_OPENDRAIN(n)         (1U << (n))
 #define PIN_OSPEED_VERYLOW(n)          (0U << ((n) * 2U))
 #define PIN_OSPEED_LOW(n)              (1U << ((n) * 2U))
 #define PIN_OSPEED_MEDIUM(n)           (2U << ((n) * 2U))
 #define PIN_OSPEED_HIGH(n)             (3U << ((n) * 2U))
-#define PIN_PUPDR_FLOATING(n)          (0U << ((n) * 2U))
-#define PIN_PUPDR_PULLUP(n)            (1U << ((n) * 2U))
-#define PIN_PUPDR_PULLDOWN(n)          (2U << ((n) * 2U))
+#define PIN_PUPD_FLOATING(n)           (0U << ((n) * 2U))
+#define PIN_PUPD_PULLUP(n)             (1U << ((n) * 2U))
+#define PIN_PUPD_PULLDOWN(n)           (2U << ((n) * 2U))
 #define PIN_AFIO_AF(n, v)              ((v) << (((n) % 8U) * 4U))
 
 """)
@@ -101,17 +102,100 @@ extern "C" {
 #endif /* _BOARD_H_ */""")
 
 
-def write_io_pins(board, board_def):
-    IO_BANKS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
-    PINS_PER_BANK = 16
+class Pins():
+    IO_PORTS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I']
+    PINS_PER_PORT = 16
 
-    pins = {k: ["PIN{}".format(n) for n in range(PINS_PER_BANK)]
-            for k in IO_BANKS}
+    _Pin = collections.namedtuple("Pin", ['name', 'port', 'num',
+                                          'mode', 'od', 'otype',
+                                          'ospeed', 'pupd', 'af',
+                                          'raw'])
 
-    for pin_def in board_def['pins']:
-        name, port, num, *_ = pin_def.split(",")
-        pins[port.upper()][int(num)] = name.upper()
+    def __init__(self, board_def):
+        default_modes = board_def['default_modes']
 
+        self._pins = {port: [self._Pin(name="PIN{}".format(n),
+                                       port=port,
+                                       num=n,
+                                       raw="unused",
+                                       **default_modes)
+                             for n in range(self.PINS_PER_PORT)]
+                      for port in self.IO_PORTS}
+
+        self._pins_by_name = {}
+
+        for name, pin_data in board_def['pins'].items():
+            pin = self._parse_pin_data(name, pin_data, default_modes)
+            self._pins[pin.port][pin.num] = pin
+            self._pins_by_name[pin.name] = pin
+
+    def _parse_pin_data(self, name, pin_data, default_modes):
+        pin = {"name": name.upper()}
+        pin.update(default_modes)
+
+        raw = []
+
+        for elm in pin_data.split(","):
+            elm = elm.strip().upper()
+            if(elm[0] == "P" and
+               elm[1] in self.IO_PORTS and
+               int(elm[2:]) < self.PINS_PER_PORT):
+                pin['port'] = elm[1]
+                pin['num'] = int(elm[2:])
+            elif elm in ['INPUT',
+                         'OUTPUT',
+                         'ANALOG']:
+                pin['mode'] = elm
+                raw += [elm]
+            elif elm in ['STARTLOW',
+                         'STARTHIGH']:
+                pin['od'] = elm[5:]
+                raw += [elm]
+            elif elm in ['PUSHPULL',
+                         'OPENDRAIN']:
+                pin['otype'] = elm
+                raw += [elm]
+            elif elm in ['VERYLOWSPEED',
+                         'LOWSPEED',
+                         'MEDIUMSPEED',
+                         'HIGHSPEED']:
+                pin['ospeed'] = elm[:-5]
+                raw += [elm]
+            elif elm in ['FLOATING',
+                         'PULLUP',
+                         'PULLDOWN']:
+                pin['pupd'] = elm
+                raw += [elm]
+            elif elm[:2] == "AF":
+                pin['mode'] = "ALTERNATE"
+                pin['af'] = int(elm[2:])
+                raw += [elm]
+            else:
+                print("Error: Invalid pin keyword {} at pin {}!".format(elm,
+                                                                        name))
+                sys.exit(1)
+
+        pin['raw'] = ", ".join(raw).lower()
+
+        return self._Pin(**pin)
+
+    def pin_by_name(self, name):
+        return self._pins_by_name[name]
+
+    def pin_by_port(self, port, num):
+        return self._pins[port.upper()][num]
+
+    def iter_names(self):
+        return iter(self._pins_by_name)
+
+    def iter_ports(self):
+        return iter(self.IO_PORTS)
+
+    def iter_port(self, port):
+        return iter(self._pins[port.upper()])
+
+
+def write_io_pins(board, pins):
     board.write(textwrap.dedent("""\
         /*
             IO pins assignments.
@@ -119,18 +203,18 @@ def write_io_pins(board, board_def):
 
         """))
 
-    for port in IO_BANKS:
-        for num, name in enumerate(pins[port]):
+    for port in pins.iter_ports():
+        for pin in pins.iter_port(port):
             board.write("#define GPIO{port}_{name}{pad}{num}U\n".format(
-                port=port,
-                name=name,
-                num=num,
+                port=pin.port,
+                name=pin.name,
+                num=pin.num,
                 # Pad line to start the pin number at 40 chars
-                pad=" "*(39-14-len(name))))
+                pad=" "*(39-14-len(pin.name))))
         board.write("\n")
 
 
-def write_io_lines(board, board_def):
+def write_io_lines(board, pins):
     board.write(textwrap.dedent("""\
     /*
         IO lines assignments.
@@ -138,27 +222,81 @@ def write_io_lines(board, board_def):
 
     """))
 
-    for pin_def in board_def['pins']:
-        name, port, num, *_ = pin_def.split(",")
+    for name in sorted(pins.iter_names()):
+        pin = pins.pin_by_name(name)
         board.write(
             "#define LINE_{name}{pad}PAL_LINE(GPIO{port}, {num}U)\n".format(
-                name=name.upper(),
-                port=port.upper(),
-                num=num,
+                name=pin.name,
+                port=pin.port,
+                num=pin.num,
                 # Pad line to start PAL_LINE at 40 chars
-                pad=" "*(39-13-len(name))))
+                pad=" "*(39-13-len(pin.name))))
     board.write("\n")
 
 
-def write_io_ports(board, board_def):
-    default_pin = board_def['default_modes'].split(",")
+def write_io_ports(board, pins):
+    for port in pins.iter_ports():
+        board.write(textwrap.dedent("""\
+            /*
+             *  GPIO{port} setup:
+             *
+            """).format(port=port))
+        for pin in pins.iter_port(port):
+            board.write(" * P{port}{num:<3}- {name:<29}({modes}).\n".format(
+                port=pin.port,
+                num=pin.num,
+                name=pin.name,
+                modes=pin.raw))
+        board.write("*/\n")
+        for mode in ['MODE', 'OTYPE', 'OSPEED', 'PUPD', 'OD']:
+            out = "{:<39}(".format(
+                "#define VAL_GPIO{port}_{mode}R".format(port=port,
+                                                        mode=mode))
+            out += " | \\\n                                        ".join(
+                ["PIN_{mode}R_{data}(GPIO{port}_{name})".format(
+                    mode=mode,
+                    data=pin._asdict()[mode.lower()],
+                    port=pin.port,
+                    name=pin.name)
+                 for pin in pins.iter_port(port)])
+            out += ")\n"
+            board.write(out)
 
+        afrl = "#define VAL_GPIO{port}_AFRL                 (".format(
+            port=port)
+        afrl += " | \\\n                                        ".join(
+            ["PIN_AFIO_AF(GPIO{port}_{name}, {af}U)".format(
+                port=port,
+                name=pin.name,
+                af=pin.af)
+             for pin in pins.iter_port(port) if pin.num < 8])
+        afrl += ")\n"
+        board.write(afrl)
+
+        afrh = "#define VAL_GPIO{port}_AFRH                 (".format(
+            port=port)
+        afrh += " | \\\n                                        ".join(
+            ["PIN_AFIO_AF(GPIO{port}_{name}, {af}U)".format(
+                port=port,
+                name=pin.name,
+                af=pin.af)
+             for pin in pins.iter_port(port) if pin.num >= 8])
+        afrh += ")\n"
+        board.write(afrh)
+        board.write("\n")
 
 
 def process_yaml(board_def):
-
     # Voltages in the form 330 (3v3), 500 (5v)
     board_def['voltage'] = int(board_def['voltage']*100)
+
+    # Modes should all be capitalised
+    board_def['default_modes'] = {k: str(v).upper()
+                                  for k, v
+                                  in board_def['default_modes'].items()}
+
+    # Except af which is an integer
+    board_def['default_modes']['af'] = int(board_def['default_modes']['af'])
     return board_def
 
 
@@ -179,18 +317,19 @@ def main():
         board_def = yaml.load(def_file)
 
     board_def = process_yaml(board_def)
+    pins = Pins(board_def)
 
     with open(args.outfile, "w") as board:
         board.write(HEADER.format(yamlfile=args.yamlfile,
                                   **board_def))
 
-        write_io_pins(board, board_def)
+        write_io_pins(board, pins)
 
-        write_io_lines(board, board_def)
+        write_io_lines(board, pins)
 
         board.write(IO_PORT_SETUP)
 
-        write_io_ports(board, board_def)
+        write_io_ports(board, pins)
 
         board.write(FOOTER)
 
