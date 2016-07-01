@@ -32,7 +32,7 @@ HEADER = textwrap.dedent("""\
     Board identifier
 */
 #define BOARD_
-#define BOARD_NAME                     "{boardname}"
+#define BOARD_NAME                     "{name}"
 
 /*
     Board oscillators-related settings.
