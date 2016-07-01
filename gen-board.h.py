@@ -103,15 +103,59 @@ extern "C" {
 #endif /* _BOARD_H_ */""")
 
 
+class MCU():
+    def __init__(self, mcutype):
+        mcu_filename = self._choose_mcu_file(mcutype)
+
+        with open(mcu_filename) as mcu_file:
+            mcu_def = yaml.load(mcu_file)
+        self.ports = mcu_def['ports']
+        self.pins_per_port = mcu_def['pins_per_port']
+
+    def _choose_mcu_file(self, mcutype):
+        types = self._mcu_types()
+        rank_types = sorted(types,
+                            key=lambda x: self._match_names(mcutype, x),
+                            reverse=True)
+        choice = rank_types[0]
+        score = self._match_names(mcutype, choice)
+
+        if score <= 0:
+            print("Error: No matching mcu type definition found.")
+            sys.exit(1)
+        mcu_filename = os.path.join(self._mcu_dir(), choice + ".yaml")
+        return mcu_filename
+
+    def _match_names(self, test, x):
+        score = 0
+        for tc, xc in zip(test, x):
+            if tc == xc:
+                score += 1
+            elif x == "x":
+                continue
+            else:
+                score -= 1
+        return score
+
+    def _mcu_types(self):
+        return [name[:-5]
+                for name in os.listdir(self._mcu_dir())
+                if name[-5:] == ".yaml"]
+
+    def _mcu_dir(self):
+        script_path = os.path.abspath(__file__)
+        script_dir = os.path.dirname(script_path)
+        return os.path.join(script_dir, "mcu")
+
+
 class Pins():
     _Pin = collections.namedtuple("Pin", ['name', 'port', 'num',
                                           'mode', 'od', 'otype',
                                           'ospeed', 'pupd', 'af',
                                           'raw'])
 
-    def __init__(self, mcu_def, board_def):
-        self.IO_PORTS = mcu_def['ports']
-        self.PINS_PER_PORT = mcu_def['pins_per_port']
+    def __init__(self, board_def):
+        self.mcu = MCU(board_def['mcutype'])
 
         default, _ = self._parse_data_str(board_def['default'], True)
 
@@ -120,8 +164,8 @@ class Pins():
                                        num=n,
                                        raw="unused",
                                        **default)
-                             for n in range(self.PINS_PER_PORT)]
-                      for port in self.IO_PORTS}
+                             for n in range(self.mcu.pins_per_port)]
+                      for port in self.mcu.ports}
 
         self._pins_by_name = {}
 
@@ -136,8 +180,8 @@ class Pins():
         for elm in pin_data.split(","):
             elm = elm.strip().upper()
             if(elm[0] == "P" and
-               elm[1] in self.IO_PORTS and
-               int(elm[2:]) < self.PINS_PER_PORT):
+               elm[1] in self.mcu.ports and
+               int(elm[2:]) < self.mcu.pins_per_port):
                 pin['port'] = elm[1]
                 pin['num'] = int(elm[2:])
             elif elm in ['INPUT',
@@ -226,7 +270,7 @@ class Pins():
         return iter(self._pins_by_name)
 
     def iter_ports(self):
-        return iter(self.IO_PORTS)
+        return sorted(iter(self._pins))
 
     def iter_port(self, port):
         return iter(self._pins[port.upper()])
@@ -346,16 +390,7 @@ def main():
         board_def = yaml.load(def_file)
 
     board_def = process_yaml(board_def)
-
-    mcu_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                           "mcu")
-
-    mcu_yaml_name = os.path.join(mcu_dir, board_def['mcutype'] + ".yaml")
-
-    with open(mcu_yaml_name) as mcu_file:
-        mcu_def = yaml.load(mcu_file)
-
-    pins = Pins(mcu_def, board_def)
+    pins = Pins(board_def)
 
     with open(args.outfile, "w") as board:
         board.write(HEADER.format(yamlfile=args.yamlfile,
