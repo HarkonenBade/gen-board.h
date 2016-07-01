@@ -1,0 +1,12 @@
+name: MyAwesomeBoard V1.0
+lsefreq: 0
+hsefreq: 0
+voltage: 3.3
+mcutype: STM32F405xx
+#default_modes: mode,otype,speed,pupd,odr,af
+default_modes: input,pushpull,high,pullup,high,0
+pins:
+#   - name,bank,number,*modes
+    - test,A,0
+    - fx_1,A,2,analog,_,_,floating
+    - fx_2,A,5,analog,_,_,floating
