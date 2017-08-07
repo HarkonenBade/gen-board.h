@@ -38,6 +38,11 @@ class Pins:
             self._pins_by_name[pin.name] = pin
 
     def _parse_data_str(self, pin_data, ln=0):
+        def err(reason):
+            print("Error: At line {} - '{}'".format(ln, pin_data))
+            print(reason)
+            sys.exit(1)
+
         pin = {}
         raw = []
         for elm in pin_data.split(","):
@@ -51,43 +56,48 @@ class Pins:
                          'OUTPUT',
                          'ANALOG']:
                 if 'mode' in pin:
-                    print("Error: At line {} - '{}'".format(ln, pin_data))
-                    print("You cannot specify both an AF and a mode")
-                    sys.exit(1)
+                    if pin['mode'] == "ALTERNATE":
+                        err("You cannot specify both an AF and a mode")
+                    else:
+                        err("You cannot specify two modes for a pin")
                 pin['mode'] = elm
                 pin['af'] = 0
                 raw += [elm]
             elif elm in ['STARTLOW',
                          'STARTHIGH']:
+                if 'od' in pin:
+                    err("You cannot specify two od values for a pin")
                 pin['od'] = elm.replace("START", "")
                 raw += [elm]
             elif elm in ['PUSHPULL',
                          'OPENDRAIN']:
+                if 'otype' in pin:
+                    err("You cannot specify two otype values for a pin")
                 pin['otype'] = elm
                 raw += [elm]
             elif elm in ['VERYLOWSPEED',
                          'LOWSPEED',
                          'MEDIUMSPEED',
                          'HIGHSPEED']:
+                if 'ospeed' in pin:
+                    err("You cannot specify two speed values for a pin")
                 pin['ospeed'] = elm.replace("SPEED", "")
                 raw += [elm]
             elif elm in ['FLOATING',
                          'PULLUP',
                          'PULLDOWN']:
+                if 'pupd' in pin:
+                    err("You cannot specify two pupd values for a pin")
                 pin['pupd'] = elm
                 raw += [elm]
             elif elm[:2] == "AF":
                 if 'mode' in pin:
-                    print("Error: At line {} - '{}'".format(ln, pin_data))
-                    print("You cannot specify both an AF and a mode")
-                    sys.exit(1)
+                    err("You cannot specify both an AF and a mode")
                 pin['mode'] = "ALTERNATE"
                 pin['af'] = int(elm[2:])
                 raw += [elm]
             else:
-                print("Error: At line {} - '{}'".format(ln, pin_data))
-                print("Invalid pin keyword '{}'".format(elm))
-                sys.exit(1)
+                err("Invalid pin keyword '{}'".format(elm))
         pin['raw'] = " ".join(raw).lower()
         return pin
 
