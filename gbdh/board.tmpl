@@ -97,28 +97,28 @@
  *  GPIO{{port}} setup:
  *
   {% for pin in pins.iter_port(port) %}
-{{" * P{}{:<5}- {}({}).".format(pin.port, pin.num, pin.name, pin.raw)}}
+{{" * P{}{:<3}- {:<29}({}).".format(pin.port, pin.num, pin.name, pin.raw)}}
   {% endfor %}
 */
   {% for mode in pins.modes %}
-#define VAL_GPIO{{port}}_{{mode}}R (\
+{{"#define VAL_GPIO{}_{:<20} ( \\".format(port, mode)}}
     {% for pin in pins.iter_port(port) %}
-    PIN_{{mode}}_{{pin[mode|lower]}}(GPIO{{port}}_{{pin.name}}) | \
+                                        PIN_{{mode}}_{{pin[mode|lower]}}(GPIO{{port}}_{{pin.name}}) | \
     {% endfor %}
-  )
+                                       )
 
   {% endfor %}
-#define VAL_GPIO{{port}}_AFRL ( \
+#define VAL_GPIO{{port}}_AFRL                 ( \
   {% for pin in pins.iter_port(port) if pin.num < 8 %}
-    PIN_AFIO_AF(GPIO{{port}}_{{pin.name}}, {{pin.af}}U) | \
+                                        PIN_AFIO_AF(GPIO{{port}}_{{pin.name}}, {{pin.af}}U) | \
   {% endfor %}
-  )
+                                       )
 
-#define VAL_GPIO{{port}}_AFRH ( \
+#define VAL_GPIO{{port}}_AFRH                 ( \
   {% for pin in pins.iter_port(port) if pin.num >= 8 %}
-    PIN_AFIO_AF(GPIO{{port}}_{{pin.name}}, {{pin.af}}U) | \
+                                        PIN_AFIO_AF(GPIO{{port}}_{{pin.name}}, {{pin.af}}U) | \
   {% endfor %}
-  )
+                                       )
 
 {% endfor %}
 #if !defined(_FROM_ASM_)
