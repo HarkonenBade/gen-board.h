@@ -88,7 +88,7 @@ class Pins:
                 print("Error: At line {} - '{}'".format(ln, pin_data))
                 print("Invalid pin keyword '{}'".format(elm))
                 sys.exit(1)
-        pin['raw'] = ", ".join(raw).lower()
+        pin['raw'] = " ".join(raw).lower()
         return pin
 
     def _load_default(self, default):

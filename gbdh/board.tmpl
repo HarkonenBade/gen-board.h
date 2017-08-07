@@ -1,6 +1,8 @@
 {# Template programming within this file falls under the project licence.
    Original text of the source file taken from ChibiOS and remains under the
    licence shown below. #}
+{% macro loop_pad(loop, size=40) %}{{ "" if loop.first else " "*size }}{% endmacro %}
+{% macro loop_term(loop) %}{% if loop.last %}){% else %} | \{% endif %}{% endmacro %}
 /*
     ChibiOS - Copyright (C) 2006..2016 Giovanni Di Sirio
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -101,24 +103,18 @@
   {% endfor %}
 */
   {% for mode in pins.modes %}
-{{"#define VAL_GPIO{}_{:<20} ( \\".format(port, mode)}}
-    {% for pin in pins.iter_port(port) %}
-                                        PIN_{{mode}}_{{pin[mode|lower]}}(GPIO{{port}}_{{pin.name}}) | \
+{{"#define VAL_GPIO{}_{:<20} (".format(port, mode + 'R')}}{% for pin in pins.iter_port(port) %}
+{{ loop_pad(loop) }}PIN_{{mode}}_{{pin[mode|lower]}}(GPIO{{port}}_{{pin.name}}){{ loop_term(loop) }}
     {% endfor %}
-                                       )
 
   {% endfor %}
-#define VAL_GPIO{{port}}_AFRL                 ( \
-  {% for pin in pins.iter_port(port) if pin.num < 8 %}
-                                        PIN_AFIO_AF(GPIO{{port}}_{{pin.name}}, {{pin.af}}U) | \
+#define VAL_GPIO{{port}}_AFRL                 ({% for pin in pins.iter_port(port) if pin.num < 8 %}
+{{ loop_pad(loop) }}PIN_AFIO_AF(GPIO{{port}}_{{pin.name}}, {{pin.af}}U){{ loop_term(loop) }}
   {% endfor %}
-                                       )
 
-#define VAL_GPIO{{port}}_AFRH                 ( \
-  {% for pin in pins.iter_port(port) if pin.num >= 8 %}
-                                        PIN_AFIO_AF(GPIO{{port}}_{{pin.name}}, {{pin.af}}U) | \
+#define VAL_GPIO{{port}}_AFRH                 ({% for pin in pins.iter_port(port) if pin.num >= 8 %}
+{{ loop_pad(loop) }}PIN_AFIO_AF(GPIO{{port}}_{{pin.name}}, {{pin.af}}U){{ loop_term(loop) }}
   {% endfor %}
-                                       )
 
 {% endfor %}
 #if !defined(_FROM_ASM_)
