@@ -59,7 +59,7 @@
 */
 {% for port in pins.iter_ports() %}
   {% for pin in pins.iter_port(port) %}
-#define GPIO{{pin.port}}_{{pin.name}} {{pin.num}}U
+{{"#define GPIO{}_{:<24} {}U".format(pin.port, pin.name, pin.num)}}
   {% endfor %}
 
 {% endfor %}
@@ -67,7 +67,7 @@
     IO lines assignments.
 */
 {% for pin in pins.iter_names() %}
-#define LINE_{{pin.name}} PAL_LINE(GPIO{{pin.port}}, {{pin.num}}U)
+{{"#define LINE_{:<25} PAL_LINE(GPIO{}, {}U)".format(pin.name, pin.port, pin.num)}}
 {% endfor %}
 
 /*
@@ -97,7 +97,7 @@
  *  GPIO{{port}} setup:
  *
   {% for pin in pins.iter_port(port) %}
- * P{{pin.port}}{{pin.num}}- {{pin.name}}({{pin.raw}}).
+{{" * P{}{:<5}- {}({}).".format(pin.port, pin.num, pin.name, pin.raw)}}
   {% endfor %}
 */
   {% for mode in pins.modes %}
@@ -105,7 +105,7 @@
     {% for pin in pins.iter_port(port) %}
     PIN_{{mode}}_{{pin[mode|lower]}}(GPIO{{port}}_{{pin.name}}) | \
     {% endfor %}
-    )
+  )
 
   {% endfor %}
 #define VAL_GPIO{{port}}_AFRL ( \
