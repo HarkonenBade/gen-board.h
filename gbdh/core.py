@@ -131,21 +131,15 @@ class Pins:
         pin.update(data)
         return self._Pin(**pin)
 
-    def pin_by_name(self, name):
-        return self._pins_by_name[name]
-
-    def pin_by_port(self, port, num):
-        return self._pins[port.upper()][num]
-
-    def iter_names(self):
+    def names(self):
         for _, pin in sorted(self._pins_by_name.items()):
             yield pin
 
-    def iter_ports(self):
-        return sorted(iter(self._pins))
+    def ports(self):
+        return sorted(self._pins)
 
-    def iter_port(self, port):
-        return iter(self._pins[port.upper()])
+    def port(self, port):
+        return self._pins[port.upper()]
 
 
 def process_yaml(board_def):

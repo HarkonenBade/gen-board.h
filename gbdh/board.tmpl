@@ -59,8 +59,8 @@
 /*
     IO pins assignments.
 */
-{% for port in pins.iter_ports() %}
-  {% for pin in pins.iter_port(port) %}
+{% for port in pins.ports() %}
+  {% for pin in pins.port(port) %}
 {{"#define GPIO{}_{:<24} {}U".format(pin.port, pin.name, pin.num)}}
   {% endfor %}
 
@@ -68,7 +68,7 @@
 /*
     IO lines assignments.
 */
-{% for pin in pins.iter_names() %}
+{% for pin in pins.names() %}
 {{"#define LINE_{:<25} PAL_LINE(GPIO{}, {}U)".format(pin.name, pin.port, pin.num)}}
 {% endfor %}
 
@@ -94,25 +94,25 @@
 #define PIN_PUPD_PULLDOWN(n)           (2U << ((n) * 2U))
 #define PIN_AFIO_AF(n, v)              ((v) << (((n) % 8U) * 4U))
 
-{% for port in pins.iter_ports() %}
+{% for port in pins.ports() %}
 /*
  *  GPIO{{port}} setup:
  *
-  {% for pin in pins.iter_port(port) %}
+  {% for pin in pins.port(port) %}
 {{" * P{}{:<3}- {:<29}({}).".format(pin.port, pin.num, pin.name, pin.raw)}}
   {% endfor %}
 */
   {% for mode in pins.modes %}
-{{"#define VAL_GPIO{}_{:<20} (".format(port, mode + 'R')}}{% for pin in pins.iter_port(port) %}
+{{"#define VAL_GPIO{}_{:<20} (".format(port, mode + 'R')}}{% for pin in pins.port(port) %}
 {{ loop_pad(loop) }}PIN_{{mode}}_{{pin[mode|lower]}}(GPIO{{port}}_{{pin.name}}){{ loop_term(loop) }}
     {% endfor %}
 
   {% endfor %}
-#define VAL_GPIO{{port}}_AFRL                 ({% for pin in pins.iter_port(port) if pin.num < 8 %}
+#define VAL_GPIO{{port}}_AFRL                 ({% for pin in pins.port(port) if pin.num < 8 %}
 {{ loop_pad(loop) }}PIN_AFIO_AF(GPIO{{port}}_{{pin.name}}, {{pin.af}}U){{ loop_term(loop) }}
   {% endfor %}
 
-#define VAL_GPIO{{port}}_AFRH                 ({% for pin in pins.iter_port(port) if pin.num >= 8 %}
+#define VAL_GPIO{{port}}_AFRH                 ({% for pin in pins.port(port) if pin.num >= 8 %}
 {{ loop_pad(loop) }}PIN_AFIO_AF(GPIO{{port}}_{{pin.name}}, {{pin.af}}U){{ loop_term(loop) }}
   {% endfor %}
 
