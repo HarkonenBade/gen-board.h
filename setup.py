@@ -9,10 +9,9 @@ setup(
     author='HarkonenBade',
     author_email='gen-board@harkonen.net',
     description='Board header file generator for ChibiOS',
-    install_requires=['ruamel.yaml', 'jinja2', 'setuptools'],
+    install_requires=['ruamel.yaml', 'jinja2'],
     entry_points={
         'console_scripts': ['gen-board.h = gbdh.core:main']
     },
-    package_data={'gbdh': ['board.tmpl',
-                           'mcu/*.yaml']},
+    package_data={'gbdh': ['board.tmpl']},
 )
