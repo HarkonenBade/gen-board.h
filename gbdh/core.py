@@ -163,6 +163,10 @@ def get_args():
     return parser.parse_args()
 
 
+def format_board_name(name):
+    return ''.join([c.upper() if c.isalnum() else "_" for c in name])
+
+
 def main():
     args = get_args()
 
@@ -174,6 +178,7 @@ def main():
     env = jinja2.Environment(loader=jinja2.PackageLoader('gbdh', ''),
                              trim_blocks=True,
                              lstrip_blocks=True)
+    env.filters['format_board_name'] = format_board_name
     tmpl = env.get_template("board.tmpl")
     with args.outfile:
         tmpl.stream(yamlfile=args.yamlfile.name, **board_def).dump(args.outfile)
