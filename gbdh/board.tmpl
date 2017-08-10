@@ -1,8 +1,8 @@
 {# Template programming within this file falls under the project licence.
    Original text of the source file taken from ChibiOS and remains under the
    licence shown below. #}
-{% macro loop_pad(loop, size=40) %}{{ "" if loop.first else " "*size }}{% endmacro %}
-{% macro loop_term(loop) %}{% if loop.last %}){% else %} | \{% endif %}{% endmacro %}
+{% macro pin_attr(attr, pin) %}PIN_{{attr}}_{{pin[attr|lower]}}(GPIO{{pin.port}}_{{pin.name}}){% endmacro %}
+{% macro pin_af(pin) %}PIN_AFIO_AF(GPIO{{pin.port}}_{{pin.name}}, {{pin.af}}U){% endmacro %}
 /*
     ChibiOS - Copyright (C) 2006..2016 Giovanni Di Sirio
     Licensed under the Apache License, Version 2.0 (the "License");
@@ -103,17 +103,35 @@
   {% endfor %}
 */
   {% for mode in pins.modes %}
-{{"#define VAL_GPIO{}_{:<20} (".format(port, mode + 'R')}}{% for pin in pins.port(port) %}
-{{ loop_pad(loop) }}PIN_{{mode}}_{{pin[mode|lower]}}(GPIO{{port}}_{{pin.name}}){{ loop_term(loop) }}
+    {% for pin in pins.port(port) %}
+      {% if loop.first %}
+{{"#define VAL_GPIO{}_{:<20} (".format(port, mode + 'R')}}{{ pin_attr(mode, pin) }} | \
+      {% elif loop.last %}
+                                        {{pin_attr(mode, pin)}})
+      {% else %}
+                                        {{pin_attr(mode, pin)}} | \
+      {% endif %}
     {% endfor %}
 
   {% endfor %}
-#define VAL_GPIO{{port}}_AFRL                 ({% for pin in pins.port(port) if pin.num < 8 %}
-{{ loop_pad(loop) }}PIN_AFIO_AF(GPIO{{port}}_{{pin.name}}, {{pin.af}}U){{ loop_term(loop) }}
+  {% for pin in pins.port(port) if pin.num < 8 %}
+      {% if loop.first %}
+#define VAL_GPIO{{port}}_AFRL                 ({{pin_af(pin)}} | \
+      {% elif loop.last %}
+                                        {{pin_af(pin)}})
+      {% else %}
+                                        {{pin_af(pin)}} | \
+      {% endif %}
   {% endfor %}
 
-#define VAL_GPIO{{port}}_AFRH                 ({% for pin in pins.port(port) if pin.num >= 8 %}
-{{ loop_pad(loop) }}PIN_AFIO_AF(GPIO{{port}}_{{pin.name}}, {{pin.af}}U){{ loop_term(loop) }}
+  {% for pin in pins.port(port) if pin.num >= 8 %}
+      {% if loop.first %}
+#define VAL_GPIO{{port}}_AFRH                 ({{pin_af(pin)}} | \
+      {% elif loop.last %}
+                                        {{pin_af(pin)}})
+      {% else %}
+                                        {{pin_af(pin)}} | \
+      {% endif %}
   {% endfor %}
 
 {% endfor %}
