@@ -11,7 +11,7 @@ setup(
     description='Board header file generator for ChibiOS',
     install_requires=['ruamel.yaml', 'jinja2'],
     entry_points={
-        'console_scripts': ['gen-board.h = gbdh.core:main']
+        'console_scripts': ['gen-board-header = gbdh.core:main']
     },
     package_data={'gbdh': ['board.tmpl']},
 )
