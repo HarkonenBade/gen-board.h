@@ -5,7 +5,7 @@ import collections
 import sys
 
 import jinja2
-from ruamel import yaml
+import yaml
 
 from .mcu import get_mcu
 
@@ -33,13 +33,13 @@ class Pins:
         self._pins_by_name = {}
 
         for name, pin_data in board_def['pins'].items():
-            pin = self._parse_pin_data(name, pin_data, default, board_def['pins'].lc.value(name)[0])
+            pin = self._parse_pin_data(name, pin_data, default)
             self._pins[pin.port][pin.num] = pin
             self._pins_by_name[pin.name] = pin
 
-    def _parse_data_str(self, pin_data, ln=0):
+    def _parse_data_str(self, pin_data):
         def err(reason):
-            print("Error: At line {} - '{}'".format(ln, pin_data))
+            print("Error: At definition '{}'".format(pin_data))
             print(reason)
             sys.exit(1)
 
@@ -124,10 +124,10 @@ class Pins:
             sys.exit(1)
         return pin
 
-    def _parse_pin_data(self, name, pin_data, default, ln):
+    def _parse_pin_data(self, name, pin_data, default):
         pin = {"name": name.upper()}
         pin.update(default)
-        data = self._parse_data_str(pin_data, ln)
+        data = self._parse_data_str(pin_data)
         pin.update(data)
         return self._Pin(**pin)
 
@@ -171,7 +171,7 @@ def main():
     args = get_args()
 
     with args.yamlfile:
-        board_def = yaml.round_trip_load(args.yamlfile)
+        board_def = yaml.safe_load(args.yamlfile)
 
     board_def = process_yaml(board_def)
 

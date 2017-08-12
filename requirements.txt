@@ -1,2 +1,2 @@
 Jinja2
-ruamel.yaml
+pyyaml
