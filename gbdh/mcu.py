@@ -10,7 +10,7 @@ MCU_LIST = {
                    pins_per_port=16),
     'STM32F4': MCU(ports=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'],
                    pins_per_port=16),
-    'STM32L0': MCU(ports=['A', 'B', 'C'],
+    'STM32L0': MCU(ports=['A', 'B', 'C', 'D', 'H'],
                    pins_per_port=16)
 }
 
