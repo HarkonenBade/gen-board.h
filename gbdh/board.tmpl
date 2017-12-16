@@ -56,6 +56,15 @@
 */
 #define {{mcutype}}
 
+{% if other %}
+/*
+    Other settings.
+*/
+{% for key, val in other.items() %}
+{{"#define {:<30} {}".format(key, val or '')}}
+{% endfor %}
+{% endif %}
+
 /*
     IO pins assignments.
 */
