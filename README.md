@@ -6,6 +6,7 @@ See board.yaml.example for examples of the yaml syntax.
 
 ## Required Parameters
 All boards require the below parameters:
+
 KEY|DESCRIPTION
 ---|-----------
 NAME|Name of the board
